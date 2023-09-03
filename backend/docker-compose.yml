@@ -1,0 +1,71 @@
+version: "3.0"
+services:
+  
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: shorturl
+      SERVICE_TAGS: dev
+    working_dir: /var/www/html/
+    volumes:
+      - ./:/var/www/html/
+      - ./php/laravel.ini:/usr/local/etc/php/conf.d/laravel.ini
+    networks:
+      - app-network
+
+  frontend:
+    stdin_open: true
+    container_name: frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    volumes:
+      - /app/node_modules
+      - ../frontend:/var/www/html/
+    networks:
+      - app-network
+
+  webserver:
+    depends_on:
+      - backend
+      - frontend
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "90:80"
+    networks:
+      - app-network
+  db:
+    image: mysql:8.1.0
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3309:3306"
+    environment:
+      MYSQL_DATABASE: urlshort
+      MYSQL_ROOT: root
+      MYSQL_ROOT_PASSWORD: urlshortdb
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+volumes:
+  dbdata:
+    driver: local
